@@ -21,13 +21,14 @@ MAX_PACKETS = 8
 # =========================
 def train_model():
     print("[+] Loading dataset...")
-    df = pd.read_excel("tcp_ip.xlsx")
+    df = pd.read_excel("tcp_ip CLEANED.xlsx")
     df.dropna(inplace=True)
 
     # Combine OS name and version for target
     df['os_full'] = df['os_name'] + " " + df['os_version'].astype(str)
 
-    feature_indices = [11, 5, 2, 12, 26, 15, 21, 19]  # keep your current features
+    # Added indices 18 (tcp_mss) and 25 (tcp_window_scaling)
+    feature_indices = [11, 5, 2, 12, 26, 15, 21, 19, 18, 25]  
     target = 'os_full'
 
     X = df.iloc[:, feature_indices]
@@ -40,7 +41,7 @@ def train_model():
         X, y, test_size=0.2, random_state=48
     )
 
-    model = RandomForestClassifier(n_estimators=80, random_state=42)
+    model = RandomForestClassifier(n_estimators=80, random_state=42, class_weight='balanced')
     model.fit(X_train, y_train)
 
     print("[+] Model trained")
@@ -58,6 +59,16 @@ def extract_features(pkt):
 
     if TCP in pkt:
         tcp = pkt[TCP]
+        
+        # Extract MSS and Window Scaling from TCP options
+        mss = 0
+        wscale = 0
+        for opt in tcp.options:
+            if opt[0] == 'MSS':
+                mss = opt[1]
+            elif opt[0] == 'WScale':
+                wscale = opt[1]
+
         return {
             "ip_len": ip.len,
             "tcp_window": tcp.window,
@@ -66,7 +77,9 @@ def extract_features(pkt):
             "ip_checksum": ip.chksum,
             "tcp_checksum": tcp.chksum,
             "tcp_seq": tcp.seq,
-            "ttl": ip.ttl
+            "ttl": ip.ttl,
+            "tcp_mss": mss,                 # NEW
+            "tcp_window_scaling": wscale    # NEW
         }
 
     if ICMP in pkt:
@@ -78,7 +91,9 @@ def extract_features(pkt):
             "ip_checksum": ip.chksum,
             "tcp_checksum": 0,
             "tcp_seq": 0,
-            "ttl": ip.ttl
+            "ttl": ip.ttl,
+            "tcp_mss": 0,                   # NEW
+            "tcp_window_scaling": 0         # NEW
         }
 
     return None
@@ -103,19 +118,26 @@ def send_probes(target_ip):
 def analyze_packets(collected, model, encoder):
     print("[+] Analyzing collected packets...")
 
+    # Aggregate the best features across ALL packets instead of just the first one
     ttl_avg = int(np.mean([p["ttl"] for p in collected]))
-    tcp_window = next((p["tcp_window"] for p in collected if p["tcp_window"] != 0), 0)
-    sample = collected[0]
+    tcp_window = max((p["tcp_window"] for p in collected), default=0)
+    tcp_mss = max((p.get("tcp_mss", 0) for p in collected), default=0)
+    tcp_wscale = max((p.get("tcp_window_scaling", 0) for p in collected), default=0)
+
+    # Try to use a packet that actually had TCP options as our base sample, otherwise fallback to the first
+    sample = next((p for p in collected if p.get("tcp_mss", 0) != 0), collected[0])
 
     feature_vector = [[
         sample["ip_len"],
-        tcp_window,
         sample["ip_id"],
-        sample["tcp_offset"],
         sample["ip_checksum"],
+        ttl_avg,
+        tcp_window,
         sample["tcp_checksum"],
         sample["tcp_seq"],
-        ttl_avg
+        sample["tcp_offset"],
+        tcp_mss,       # Use the aggregated Max MSS
+        tcp_wscale     # Use the aggregated Max Window Scale
     ]]
 
     with warnings.catch_warnings():
@@ -135,7 +157,6 @@ def analyze_packets(collected, model, encoder):
 
     print(json.dumps(result, indent=2))
 
-
 # =========================
 # MAIN ACTIVE FINGERPRINT
 # =========================
@@ -150,6 +171,8 @@ def run_active_fingerprint(target_ip):
     collected = []
 
     def process_packet(pkt):
+        if len(collected) >= MAX_PACKETS:
+            return
         if IP not in pkt:
             return
 
