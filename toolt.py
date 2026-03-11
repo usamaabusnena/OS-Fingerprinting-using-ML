@@ -13,7 +13,7 @@ import time
 INTERFACE = "wlo1"
 TIMEOUT = 20
 PROBE_PORTS = [80, 443, 22, 445, 3389]
-MAX_PACKETS = 8
+MAX_PACKETS = 12
 
 
 # =========================
@@ -23,12 +23,12 @@ def train_model():
     print("[+] Loading dataset...")
     df = pd.read_excel("tcp_ip CLEANED.xlsx")
     df.dropna(inplace=True)
-
+    df.drop_duplicates(inplace=True)
     # Combine OS name and version for target
     df['os_full'] = df['os_name'] + " " + df['os_version'].astype(str)
 
-    # Added indices 18 (tcp_mss) and 25 (tcp_window_scaling)
-    feature_indices = [11, 5, 2, 12, 26, 15, 21, 19, 18, 25]  
+    # feature_indices = [ip_len, ip_id, ip_checksum, ttl, tcp_window_size, tcp_checksum, tcp_seq, tcp_offset, tcp_mss, tcp_window_scaling]
+    feature_indices = [7, 4, 2, 8, 17, 9, 14, 12, 11, 16]  
     target = 'os_full'
 
     X = df.iloc[:, feature_indices]
