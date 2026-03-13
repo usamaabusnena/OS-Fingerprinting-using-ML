@@ -1,49 +1,68 @@
+<div align="center">
 OS Fingerprinting using Machine Learning
 
-This project uses an active machine-learning approach to fingerprint the Operating System (OS) of a target device over a network.
+An active, machine-learning-powered network reconnaissance tool that predicts the Operating System of a target device by analyzing its TCP/IP stack behavior.
 
-Unlike traditional passive fingerprinting tools that rely on hardcoded signature databases (like p0f), this tool actively sends "rich" TCP SYN probes to elicit a response and uses a trained Random Forest Classifier to predict the target OS based on its network stack behavior.
+</div>
+Table of Contents
+
+    Overview
+
+    Features
+
+    Dataset Schema
+
+    Prerequisites
+
+    Usage
+
+    Troubleshooting
+
+Overview
+
+Unlike traditional passive fingerprinting tools (like p0f) that rely on static, hardcoded signature databases, this tool takes an active approach. It sends specialized "rich" TCP SYN probes to force the target OS to reveal its advanced stack limits, and then uses a trained Random Forest Classifier to predict the Operating System based on the nuanced differences in network stack implementations.
 Features
 
-    Active Probing: Uses scapy to send specialized SYN packets loaded with TCP options (MSS, Window Scaling, Timestamps, SACK) to force the target OS to reveal its advanced stack limits.
+    Active Probing: Uses scapy to send specialized SYN packets loaded with TCP options (MSS, Window Scaling, Timestamps, SACK).
 
-    Machine Learning Analysis: Uses Scikit-Learn to classify the OS based on the response.
+    Machine Learning Analysis: Uses scikit-learn to classify the OS based on the network response.
 
-    Bias-Resistant Training: The model explicitly limits its decision tree depth and restricts features to strict OS limits (TTL, Window Size, MSS, SYN Size) to avoid overfitting and "client vs. server" prediction biases.
+    Bias-Resistant Training: Explicitly limits decision tree depth and restricts features to strict OS limits (TTL, Window Size, MSS, SYN Size) to avoid "client vs. server" prediction biases.
 
-    Model Caching: Automatically saves the trained model (rf_model.pkl) to disk to ensure lightning-fast subsequent runs.
+    Model Caching: Automatically saves the trained model (rf_model.pkl) to disk for lightning-fast execution on subsequent runs.
 
 Dataset Schema
 
-The model is trained on network flow data. Below is the schema for the features included in datasets subnet1, subnet2, subnet3, and subnet4:
+The model is trained on network flow data from the subnet1, subnet2, subnet3, and subnet4 datasets.
+
+    Note on Feature Selection: While the datasets contain full bidirectional flow metrics, this active fingerprinting tool intentionally restricts its training and inference to a strict subset (TTL, TCP_WIN, TCP_MSS, and TCP_SYN_SIZE). This prevents the AI from falsely correlating flow sizes (Bytes/Packets) or ephemeral ports with a specific OS.
+
+Included Features:
 Feature	Description
-OS_LABEL	OS annotation label
-DST_PORT	transport layer destination port
-SRC_PORT	transport layer source port
+OS_LABEL	OS annotation label (Target Variable)
+DST_PORT	Transport layer destination port
+SRC_PORT	Transport layer source port
 TCP_SYN_SIZE	TCP SYN packet size
 TCP_WIN	TCP window size
-TCP_WIN_REV	TCP window size
+TCP_WIN_REV	TCP window size (reverse)
 TCP_MSS	TCP maximum segment size
-PACKETS	number of packets in data flow (src to dst)
-PACKETS_REV	number of packets in data flow (dst to src)
-BYTES	number of bytes in data flow (src to dst)
-BYTES_REV	number of bytes in data flow (dst to src)
+PACKETS	Number of packets in data flow (src to dst)
+PACKETS_REV	Number of packets in data flow (dst to src)
+BYTES	Number of bytes in data flow (src to dst)
+BYTES_REV	Number of bytes in data flow (dst to src)
 TCP_OPTIONS	TCP options bitfield
-TCP_OPTIONS_REV	TCP options bitfield
-DIR_BIT_FIELD	bit field for determining outgoing/incoming traffic
+TCP_OPTIONS_REV	TCP options bitfield (reverse)
+DIR_BIT_FIELD	Bit field for determining outgoing/incoming traffic
 FLOW_END_REASON	FlowEndReason [RFC5102]
 L3_FLAGS	L3 FLAGS
-L3_FLAGS_REV	L3 FLAGS
-PROTOCOL	transport protocol
+L3_FLAGS_REV	L3 FLAGS (reverse)
+PROTOCOL	Transport protocol
 TCP_FLAGS	TCP protocol flags (src to dst)
 TTL	IP TTL field (rounded to nearest higher power of two)
-TTL_REV	IP TTL field
-
-    Note on Feature Selection: While the datasets contain full bidirectional flow metrics, the active fingerprinting tool intentionally restricts its training and inference to a subset of these features (specifically TTL, TCP_WIN, TCP_MSS, and TCP_SYN_SIZE). This prevents the AI from falsely correlating network sizes (like Bytes or Packets) or ephemeral ports with a specific Operating System.
-
+TTL_REV	IP TTL field (reverse)
 Prerequisites
 
-You need Python 3 installed along with the following libraries:
+You need Python 3 installed along with the following libraries. Install them via pip:
 Bash
 
 pip install pandas scikit-learn scapy numpy
@@ -51,22 +70,20 @@ pip install pandas scikit-learn scapy numpy
 Usage
 
 Because the tool crafts raw network packets and actively sniffs the interface for replies, it must be run with root/administrator privileges.
+Command Syntax
 Bash
 
-sudo python3 newtool.py <TARGET_IP> -i <INTERFACE>
+sudo python3 newtool.py <TARGET_IP>
 
-Arguments:
-
-    <TARGET_IP>: The IP address of the device you want to fingerprint (e.g., 192.168.1.5).
-
-    -i / --interface: The network interface to sniff on (e.g., eth0, wlan0, wlo1, en0).
-
-Example:
+Arguments
+Argument	Description	Example
+<TARGET_IP>	(Required) The IP address of the device to fingerprint.	10.0.0.45
+Example Run
 Bash
 
 sudo python3 newtool.py 10.0.0.45 -i wlo1
 
-Output Example:
+Expected Output
 JSON
 
 [+] Active fingerprinting started
@@ -87,6 +104,12 @@ JSON
 
 Troubleshooting
 
-    Model predicts incorrectly or outputs "Timeout": Ensure the target device has at least one open port. If all ports are closed or the device is behind a strict firewall/AP Isolation, it will reply with RST packets (stripping its TCP options) or drop the packets entirely, significantly reducing the model's accuracy.
+    Model predicts incorrectly or outputs "Timeout"
 
-    Want to retrain the model? If you update the datasets, simply delete the .pkl files in the directory. The script will automatically train a fresh model on its next run.
+        Cause: The target device likely has all probed ports closed, or is behind a strict firewall/AP Isolation. It is replying with RST packets (which strip TCP options) or dropping packets entirely.
+
+        Fix: Ensure the target device has at least one open port, and verify that your machine can reach it (e.g., test with ping or nmap).
+
+    Want to retrain the model? * Cause: You updated the datasets or tweaked the hyperparameters, but the script is still using the old cached model.
+
+        Fix: Delete the cached .pkl files by running rm rf_model.pkl label_encoder.pkl. The script will automatically parse your datasets and train a fresh model on its next run.
