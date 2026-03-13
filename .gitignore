@@ -11,3 +11,6 @@ wheels/
 
 # data files
 *.csv
+
+# ml models
+*.pkl
