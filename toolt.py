@@ -12,7 +12,7 @@ import time
 
 INTERFACE = "wlo1"
 TIMEOUT = 20
-PROBE_PORTS = [80, 443, 22, 445, 3389]
+PROBE_PORTS = [80, 443, 22, 445, 3389, 2221]
 MAX_PACKETS = 12
 
 
@@ -103,14 +103,26 @@ def extract_features(pkt):
 # PROBES
 # =========================
 def send_probes(target_ip):
-    print("[+] Sending TCP probes...")
+    print("[+] Sending TCP probes with rich options...")
+    
+    # We include standard options to negotiate full TCP features
+    # This forces the target OS to reply with its unique combination of supported options
+    rich_options = [
+        ('MSS', 1460), 
+        ('SAckOK', ''), 
+        ('Timestamp', (int(time.time() % 10000), 0)), 
+        ('NOP', None), 
+        ('WScale', 7)
+    ]
+    
     for port in PROBE_PORTS:
         sport = random.randint(1024, 65535)
-        send(IP(dst=target_ip) / TCP(sport=sport, dport=port, flags="S"), verbose=0)
+        # Add the options array to our outgoing SYN
+        probe = IP(dst=target_ip) / TCP(sport=sport, dport=port, flags="S", options=rich_options)
+        send(probe, verbose=0)
 
     print("[+] Sending ICMP probe...")
     send(IP(dst=target_ip) / ICMP(), verbose=0)
-
 
 # =========================
 # ML ANALYSIS ONLY
