@@ -17,7 +17,7 @@ ENCODER_FILE = "label_encoder.pkl"  # NEW
 
 INTERFACE = "wlo1"
 TIMEOUT = 20
-PROBE_PORTS = [2221, 22, 80, 443, 445, 3389]
+PROBE_PORTS = [2221, 22, 80, 443, 445, 3389, 8000]
 MAX_PACKETS = 12
 
 # =========================
