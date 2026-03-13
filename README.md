@@ -38,29 +38,50 @@ The model is trained on network flow data from the subnet1, subnet2, subnet3, an
     Note on Feature Selection: While the datasets contain full bidirectional flow metrics, this active fingerprinting tool intentionally restricts its training and inference to a strict subset (TTL, TCP_WIN, TCP_MSS, and TCP_SYN_SIZE). This prevents the AI from falsely correlating flow sizes (Bytes/Packets) or ephemeral ports with a specific OS.
 
 Included Features:
-Feature	Description
-OS_LABEL	OS annotation label (Target Variable)
-DST_PORT	Transport layer destination port
-SRC_PORT	Transport layer source port
-TCP_SYN_SIZE	TCP SYN packet size
-TCP_WIN	TCP window size
-TCP_WIN_REV	TCP window size (reverse)
-TCP_MSS	TCP maximum segment size
-PACKETS	Number of packets in data flow (src to dst)
-PACKETS_REV	Number of packets in data flow (dst to src)
-BYTES	Number of bytes in data flow (src to dst)
-BYTES_REV	Number of bytes in data flow (dst to src)
-TCP_OPTIONS	TCP options bitfield
-TCP_OPTIONS_REV	TCP options bitfield (reverse)
-DIR_BIT_FIELD	Bit field for determining outgoing/incoming traffic
-FLOW_END_REASON	FlowEndReason [RFC5102]
-L3_FLAGS	L3 FLAGS
-L3_FLAGS_REV	L3 FLAGS (reverse)
-PROTOCOL	Transport protocol
-TCP_FLAGS	TCP protocol flags (src to dst)
-TTL	IP TTL field (rounded to nearest higher power of two)
-TTL_REV	IP TTL field (reverse)
-Prerequisites
+
+    OS_LABEL: OS annotation label (Target Variable)
+
+    DST_PORT: Transport layer destination port
+
+    SRC_PORT: Transport layer source port
+
+    TCP_SYN_SIZE: TCP SYN packet size
+
+    TCP_WIN: TCP window size
+
+    TCP_WIN_REV: TCP window size (reverse)
+
+    TCP_MSS: TCP maximum segment size
+
+    PACKETS: Number of packets in data flow (src to dst)
+
+    PACKETS_REV: Number of packets in data flow (dst to src)
+
+    BYTES: Number of bytes in data flow (src to dst)
+
+    BYTES_REV: Number of bytes in data flow (dst to src)
+
+    TCP_OPTIONS: TCP options bitfield
+
+    TCP_OPTIONS_REV: TCP options bitfield (reverse)
+
+    DIR_BIT_FIELD: Bit field for determining outgoing/incoming traffic
+
+    FLOW_END_REASON: FlowEndReason [RFC5102]
+
+    L3_FLAGS: L3 FLAGS
+
+    L3_FLAGS_REV: L3 FLAGS (reverse)
+
+    PROTOCOL: Transport protocol
+
+    TCP_FLAGS: TCP protocol flags (src to dst)
+
+    TTL: IP TTL field (rounded to nearest higher power of two)
+
+    TTL_REV: IP TTL field (reverse)
+    
+Prerequisites:
 
 You need Python 3 installed along with the following libraries. Install them via pip:
 Bash
